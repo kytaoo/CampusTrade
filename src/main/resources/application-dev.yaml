@@ -1,0 +1,46 @@
+# 开发环境配置
+server:
+  port: 8080 # 后端服务端口
+
+spring:
+  # --- 数据库配置 ---
+  datasource:
+    url: jdbc:mysql://localhost:3306/campus_trade?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai&useSSL=false
+    username: root       # 请替换为你的数据库用户名
+    password: kyt040729  # 请替换为你的数据库密码
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  # --- Redis 配置 ---
+  redis:
+    host: localhost
+    port: 6379
+    password: # 如果你的 Redis 设置了密码，请填写
+    database: 0 # 使用哪个 Redis 数据库
+
+  # --- 邮件配置 (后续使用) ---
+  # mail:
+  #   host: smtp.example.com
+  #   port: 587
+  #   username: your-email@example.com
+  #   password: your-email-password
+  #   properties:
+  #     mail:
+  #       smtp:
+  #         auth: true
+  #         starttls:
+  #           enable: true
+
+  # --- Spring Security (本阶段暂时允许所有) ---
+  # security: # Security 的配置主要在 SecurityConfig.java 中
+
+# --- MyBatis Plus 配置 ---
+mybatis-plus:
+  mapper-locations: classpath:/mapper/**/*.xml # 如果使用 XML Mapper
+    # configuration:
+  # log-impl: org.apache.ibatis.logging.stdout.StdOutImpl # 开发时打印 SQL
+  global-config:
+    db-config:
+      # id-type: assign_id # 如果需要自定义 ID 生成策略 (如雪花算法)
+      logic-delete-field: is_deleted # 全局逻辑删除字段名 (如果需要)
+      logic-delete-value: 1 # 逻辑删除值
+      logic-not-delete-value: 0 # 未删除值

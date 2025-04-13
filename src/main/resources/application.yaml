@@ -1,0 +1,4 @@
+# 主配置文件，引用特定环境配置
+spring:
+  profiles:
+    active: dev # 激活开发环境配置
