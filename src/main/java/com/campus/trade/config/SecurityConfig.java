@@ -1,62 +1,76 @@
 package com.campus.trade.config;
 
+import com.campus.trade.security.AccessDeniedHandlerImpl;
+import com.campus.trade.security.AuthenticationEntryPointImpl;
+import com.campus.trade.security.JwtAuthenticationFilter;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
+import org.springframework.security.config.annotation.method.configuration.EnableGlobalMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 @Configuration
-@EnableWebSecurity // 启用 Spring Security
+@EnableWebSecurity
+@EnableGlobalMethodSecurity(prePostEnabled = true) // 启用方法级别的权限注解 @PreAuthorize
 public class SecurityConfig {
 
-    // 配置密码编码器 Bean
+    @Autowired
+    private JwtAuthenticationFilter jwtAuthenticationFilter; // 注入 JWT 过滤器
+
+    @Autowired
+    private AuthenticationEntryPointImpl authenticationEntryPoint; // 注入未认证处理器
+
+    @Autowired
+    private AccessDeniedHandlerImpl accessDeniedHandler; // 注入未授权处理器
+
+    // 获取 AuthenticationManager (原 WebSecurityConfigurerAdapter#configure(AuthenticationManagerBuilder) 替代方案)
     @Bean
-    public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
+    public AuthenticationManager authenticationManager(AuthenticationConfiguration authenticationConfiguration) throws Exception {
+        return authenticationConfiguration.getAuthenticationManager();
     }
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-            // 1. 禁用 CSRF 防护 (因为我们使用 JWT，不需要 Session)
-            .csrf().disable()
+                // 1. 禁用 CSRF
+                .csrf().disable()
 
-            // 2. 配置 Session 管理策略为 STATELESS (无状态)
-            .sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS)
-            .and()
+                // 2. 配置 Session 管理策略为 STATELESS
+                .sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+                .and()
 
-            // 3. 配置 URL 授权规则
-            .authorizeRequests(authorize -> authorize
-                // 对于 /hello 接口和后续的 /auth/** 接口，允许所有访问
-                .antMatchers("/hello", "/auth/**").permitAll()
-                // 其他所有请求都需要身份认证 (暂时注释掉，允许所有访问，方便初期测试)
-                // .anyRequest().authenticated()
-                .anyRequest().permitAll() // !!注意: 阶段一暂时允许所有，方便测试基础接口
-            );
+                // 3. 配置 URL 授权规则
+                .authorizeRequests(authorize -> authorize
+                        // -- 放行规则 --
+                        .antMatchers("/hello").permitAll() // 测试接口
+                        .antMatchers("/auth/**").permitAll() // 认证相关接口 (注册、登录、验证码)
+                        // 商品浏览接口 (GET 请求) 通常允许匿名访问
+                        .antMatchers(HttpMethod.GET, "/items", "/items/{itemId}").permitAll()
+                        // 文件上传接口 (如果单独提供) 可能需要认证
+                        // .antMatchers("/upload/**").permitAll() // 或者 .authenticated()
 
-            // 4. 配置 CORS (Spring Security 会利用 WebMvcConfig 中定义的 CorsConfigurationSource)
-            // http.cors(); // 如果 WebMvcConfig 配置了全局 CORS，这里可以省略或按需配置
+                        // -- 其他所有请求都需要身份认证 --
+                        .anyRequest().authenticated()
+                )
 
-            // 5. 配置 JWT 过滤器 (将在后续阶段添加)
-            // http.addFilterBefore(jwtAuthenticationTokenFilter(), UsernamePasswordAuthenticationFilter.class);
+                // 4. 将 JWT 过滤器添加到 UsernamePasswordAuthenticationFilter 之前
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
 
-            // 6. 配置异常处理 (将在后续阶段完善)
-            // .exceptionHandling()
-            // .authenticationEntryPoint(authenticationEntryPoint()) // 未认证处理器
-            // .accessDeniedHandler(accessDeniedHandler());        // 未授权处理器
+                // 5. 配置异常处理
+                .exceptionHandling()
+                .authenticationEntryPoint(authenticationEntryPoint) // 处理未认证
+                .accessDeniedHandler(accessDeniedHandler);        // 处理未授权
+
+        // 6. 启用 CORS (利用 WebMvcConfig 中的配置)
+        http.cors(); // 确保应用 WebMvcConfig 中的 CORS 设置
 
         return http.build();
     }
-
-    // --- 后续阶段需要添加的 Bean ---
-    // @Bean
-    // public JwtAuthenticationTokenFilter jwtAuthenticationTokenFilter() { ... }
-    // @Bean
-    // public AuthenticationEntryPoint authenticationEntryPoint() { ... }
-    // @Bean
-    // public AccessDeniedHandler accessDeniedHandler() { ... }
 }
