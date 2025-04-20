@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.campus.trade.mapper.ItemMapper"> <!-- namespace 指向你的 Mapper 接口 -->
+
+    <!-- 【关键】定义一个 ResultMap，包含所有需要映射的字段，特别是需要 TypeHandler 的 images 字段 -->
+    <resultMap id="ItemWithSellerResultMap" type="com.campus.trade.entity.Item">
+        <id property="id" column="id"/>
+        <result property="userId" column="user_id"/>
+        <result property="title" column="title"/>
+        <result property="description" column="description"/>
+        <result property="category" column="category"/>
+        <result property="price" column="price"/>
+        <!-- 【关键】为 images 字段指定 typeHandler -->
+        <result property="images" column="images" typeHandler="com.baomidou.mybatisplus.extension.handlers.JacksonTypeHandler"/>
+        <result property="condition" column="condition"/> <!-- 注意：如果数据库列名是 `condition` -->
+        <result property="status" column="status"/>
+        <result property="clickCount" column="click_count"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+        <!-- 映射关联字段 -->
+        <result property="sellerNickname" column="sellerNickname"/>
+        <result property="sellerAvatar" column="sellerAvatar"/>
+    </resultMap>
+
+    <!-- 【关键】在 select 标签中使用 resultMap 属性引用上面定义的 ResultMap -->
+    <select id="findItemPage" resultMap="ItemWithSellerResultMap">
+        SELECT
+        i.id, i.user_id, i.title, i.description, i.category, i.price,
+        i.images, -- 确保查询了 images 列
+        i.`condition`, -- 如果数据库列名是 `condition` (关键字)，可能需要反引号
+        i.status, i.click_count, i.created_at, i.updated_at,
+        u.nickname AS sellerNickname,
+        u.avatar AS sellerAvatar
+        FROM
+        item i
+        LEFT JOIN
+        user u ON i.user_id = u.id
+        <where>
+            <if test="category != null and category != ''">
+                AND i.category = #{category}
+            </if>
+            <if test="keyword != null and keyword != ''">
+                AND (i.title LIKE CONCAT('%', #{keyword}, '%') OR i.description LIKE CONCAT('%', #{keyword}, '%'))
+            </if>
+            <if test="status != null and status != ''">
+                AND i.status = #{status}
+            </if>
+            AND i.status != '已删除'
+        </where>
+        ORDER BY
+        i.created_at DESC
+    </select>
+
+</mapper>

@@ -15,6 +15,7 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.http.HttpMethod; // 确保导入 HttpMethod
 
 @Configuration
 @EnableWebSecurity
@@ -53,6 +54,7 @@ public class SecurityConfig {
                         .antMatchers("/auth/**").permitAll() // 认证相关接口 (注册、登录、验证码)
                         // 商品浏览接口 (GET 请求) 通常允许匿名访问
                         .antMatchers(HttpMethod.GET, "/items", "/items/{itemId}").permitAll()
+                        .antMatchers("/images/**").permitAll() // <<-- 【确认或添加这一行】明确放行图片访问路径
                         // 文件上传接口 (如果单独提供) 可能需要认证
                         // .antMatchers("/upload/**").permitAll() // 或者 .authenticated()
 
