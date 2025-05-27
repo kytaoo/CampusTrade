@@ -77,10 +77,9 @@ public interface IItemService extends IService<Item> {
     IPage<Item> findMyItems(Page<Item> page, Integer userId);
 
     /**
-     * 保存上传的图片文件
-     * @param file MultipartFile 文件对象
-     * @return 文件保存后的相对访问路径 (例如 /images/xxxxx.jpg)
-     * @throws IOException 保存失败
+     * 根据id列表查询商品
+     * @param itemIds 商品id列表
+     * @return 符合条件商品列表
      */
-    String saveImage(MultipartFile file) throws IOException;
+    List<Item> listItemsByIds(List<Integer> itemIds);
 }

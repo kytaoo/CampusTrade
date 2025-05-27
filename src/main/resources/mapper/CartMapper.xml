@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.campus.trade.mapper.CartMapper"> <!-- namespace 指向 CartMapper 接口 -->
+
+    <!-- 定义 ResultMap -->
+    <resultMap id="CartItemVOResultMap" type="com.campus.trade.vo.CartItemVO">
+        <id property="id" column="id"/>
+        <result property="userId" column="user_id"/>
+        <result property="itemId" column="item_id"/>
+        <result property="itemTitle" column="itemTitle"/>
+        <result property="itemPrice" column="itemPrice"/>
+        <!-- 关键：为 itemImages 指定 typeHandler -->
+        <result property="itemImages" column="itemImages" javaType="java.util.List" jdbcType="VARCHAR"
+                typeHandler="com.baomidou.mybatisplus.extension.handlers.JacksonTypeHandler"/>
+        <result property="itemStatus" column="itemStatus"/>
+    </resultMap>
+
+    <!-- findCartItemsByUserId 方法对应的 SQL -->
+    <select id="findCartItemsByUserId" resultMap="CartItemVOResultMap">
+        SELECT
+        c.id, c.user_id, c.item_id, i.title AS itemTitle, i.price AS itemPrice,
+        i.images AS itemImages, i.status as itemStatus
+        FROM
+        cart c
+        LEFT JOIN
+        item i ON c.item_id = i.id
+        WHERE
+        c.user_id = #{userId}
+        AND
+        i.status = '在售'
+        ORDER BY
+        c.created_at DESC
+    </select>
+
+</mapper>

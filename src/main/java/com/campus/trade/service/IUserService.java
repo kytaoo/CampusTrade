@@ -6,6 +6,8 @@ import com.campus.trade.dto.UserRegisterReqDTO;
 import com.campus.trade.entity.User;
 import com.campus.trade.vo.LoginSuccessVO;
 
+import java.math.BigDecimal;
+
 
 public interface IUserService extends IService<User> { // 继承 IService 提供基础 CRUD
 
@@ -39,4 +41,15 @@ public interface IUserService extends IService<User> { // 继承 IService 提供
      * @return 用户实体，或 null 如果未找到
      */
     User findUserByIdentifier(String identifier);
+
+    /**
+     * 查询余额
+     * @param userId 用户id
+     * @return 余额
+     */
+    BigDecimal getUserBalance(Integer userId);
+
+    // 注意：直接暴露扣款和加款接口可能不安全，最好通过业务逻辑（如支付、确认收货）调用
+    // boolean decreaseBalance(Integer userId, BigDecimal amount);
+    // boolean increaseBalance(Integer userId, BigDecimal amount);
 }

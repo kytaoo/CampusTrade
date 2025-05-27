@@ -10,6 +10,7 @@ import com.campus.trade.entity.Item;
 import com.campus.trade.entity.User;
 import com.campus.trade.mapper.ItemMapper;
 import com.campus.trade.mapper.UserMapper; // 需要注入 UserMapper 获取卖家信息
+import com.campus.trade.service.FileService;
 import com.campus.trade.service.IItemService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
@@ -43,11 +44,14 @@ public class ItemServiceImpl extends ServiceImpl<ItemMapper, Item> implements II
     @Autowired
     private UserMapper userMapper; // 注入 UserMapper
 
-    @Value("${file.upload.base-path}")
-    private String uploadBasePath;
+    @Autowired
+    private FileService fileService; // <<-- 注入 FileService
 
-    @Value("${file.access.path-pattern}")
-    private String accessPathPattern; // 用于构造相对路径
+    // 注入商品图片相关的配置
+    @Value("${file.upload.item-base-path}")
+    private String itemUploadBasePath;
+    @Value("${file.access.item-path-pattern}")
+    private String itemAccessPathPattern;
 
     // 商品状态常量 (推荐使用枚举)
     private static final String STATUS_ON_SALE = "在售"; // 在售
@@ -56,27 +60,28 @@ public class ItemServiceImpl extends ServiceImpl<ItemMapper, Item> implements II
     private static final String STATUS_DELETED = "已删除"; // 逻辑删除状态
 
     @Override
-    @Transactional // 包含文件保存和数据库插入，需要事务
+    @Transactional
     public Item publishItem(ItemPublishReqDTO publishDTO, Integer userId, List<MultipartFile> imageFiles) throws IOException {
         Item item = new Item();
         BeanUtils.copyProperties(publishDTO, item);
         item.setUserId(userId);
-        item.setStatus(STATUS_ON_SALE); // 默认状态为在售
-        item.setClickCount(0); // 初始点击量为 0
+        item.setStatus("在售"); // 使用中文常量
+        item.setClickCount(0);
 
         // 处理图片上传
         if (!CollectionUtils.isEmpty(imageFiles)) {
             List<String> imagePaths = new ArrayList<>();
+            String accessPrefix = itemAccessPathPattern.replace("/**", ""); // 获取访问前缀 /images/item
             for (MultipartFile file : imageFiles) {
                 if (file != null && !file.isEmpty()) {
-                    String relativePath = saveImage(file); // 保存图片并获取相对路径
+                    // 【修改】调用 FileService 保存图片
+                    String relativePath = fileService.saveFile(file, itemUploadBasePath, accessPrefix);
                     imagePaths.add(relativePath);
                 }
             }
-            item.setImages(imagePaths); // 设置图片路径列表
+            item.setImages(imagePaths);
         }
 
-        // createdAt 和 updatedAt 由 MP 自动填充
         itemMapper.insert(item);
         return item;
     }
@@ -129,15 +134,17 @@ public class ItemServiceImpl extends ServiceImpl<ItemMapper, Item> implements II
         // 更新允许修改的字段
         BeanUtils.copyProperties(updateDTO, existingItem, "id", "userId", "status", "clickCount", "createdAt", "updatedAt"); // 忽略不能修改的字段
 
-        // 处理图片更新：如果上传了新图片，则替换旧图片
+        // 处理图片更新
         if (!CollectionUtils.isEmpty(imageFiles)) {
-             // 可选：先删除旧图片文件 (需要实现删除逻辑)
-             // deleteOldImages(existingItem.getImages());
+            // 可选：删除旧图片文件 (需要实现 FileService.deleteFile 并传入旧的 relativePaths)
+            // deleteOldImages(existingItem.getImages()); // 假设有这个方法
 
             List<String> newImagePaths = new ArrayList<>();
+            String accessPrefix = itemAccessPathPattern.replace("/**", "");
             for (MultipartFile file : imageFiles) {
                 if (file != null && !file.isEmpty()) {
-                    String relativePath = saveImage(file);
+                    // 【修改】调用 FileService 保存新图片
+                    String relativePath = fileService.saveFile(file, itemUploadBasePath, accessPrefix);
                     newImagePaths.add(relativePath);
                 }
             }
@@ -215,55 +222,6 @@ public class ItemServiceImpl extends ServiceImpl<ItemMapper, Item> implements II
         return itemMapper.selectPage(page, queryWrapper);
     }
 
-    /**
-     * 保存上传的文件到指定目录
-     * @param file MultipartFile
-     * @return 文件保存后的相对访问路径 (例如 /images/xxxxx.jpg)
-     * @throws IOException
-     */
-    @Override
-    public String saveImage(MultipartFile file) throws IOException {
-        if (file == null || file.isEmpty()) {
-            throw new IllegalArgumentException("文件不能为空");
-        }
-
-        String originalFilename = file.getOriginalFilename();
-        String fileExtension = "";
-        if (StringUtils.hasText(originalFilename) && originalFilename.contains(".")) {
-            fileExtension = originalFilename.substring(originalFilename.lastIndexOf("."));
-        }
-
-        // 生成唯一文件名，避免重复
-        String uniqueFileName = UUID.randomUUID().toString().replace("-", "") + fileExtension;
-
-        // 确保上传目录存在
-        Path uploadPath = Paths.get(uploadBasePath);
-        if (!Files.exists(uploadPath)) {
-            Files.createDirectories(uploadPath); // 创建目录，包括父目录
-        }
-
-        // 计算文件的完整物理路径
-        Path filePath = uploadPath.resolve(uniqueFileName);
-
-        // 保存文件
-        InputStream inputStream = null;
-        try {
-            inputStream = file.getInputStream();
-            Files.copy(inputStream, filePath, StandardCopyOption.REPLACE_EXISTING);
-        } finally {
-            if (inputStream != null) {
-                try {
-                    inputStream.close(); // 尝试显式关闭
-                } catch (IOException e) {
-                    log.error("关闭上传文件输入流时出错", e);
-                }
-            }
-        }
-
-        // 构造并返回相对访问路径 (需要去掉 accessPathPattern 中的 ** 通配符)
-        String relativePathPrefix = accessPathPattern.replace("/**", ""); // 例如 /images
-        return relativePathPrefix + "/" + uniqueFileName; // 例如 /images/xxxxx.jpg
-    }
 
     // (可选) 删除旧图片文件的辅助方法
     // private void deleteOldImages(List<String> relativePaths) {
@@ -282,4 +240,12 @@ public class ItemServiceImpl extends ServiceImpl<ItemMapper, Item> implements II
     //         }
     //     }
     // }
+
+    @Override
+    public List<Item> listItemsByIds(List<Integer> itemIds) {
+        if (CollectionUtils.isEmpty(itemIds)) {
+            return new ArrayList<>();
+        }
+        return itemMapper.selectBatchIds(itemIds);
+    }
 }

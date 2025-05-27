@@ -12,6 +12,6 @@ public class CampusTradeApplication {
 
     public static void main(String[] args) {
         SpringApplication.run(CampusTradeApplication.class, args);
-        System.out.println("(♥◠‿◠)ﾉﾞ  校园二手交易平台后端启动成功 (阶段三完成)   ლ(´ڡ`ლ)ﾞ");
+        System.out.println("(♥◠‿◠)ﾉﾞ  校园二手交易平台后端启动成功 (阶段四`完成)   ლ(´ڡ`ლ)ﾞ");
     }
 }

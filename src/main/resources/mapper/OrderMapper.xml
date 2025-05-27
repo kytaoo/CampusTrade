@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.campus.trade.mapper.OrderMapper">
+
+    <select id="findOrderPage" resultType="com.campus.trade.entity.Order">
+        SELECT *
+        FROM `order` o
+        <where>
+            <!-- 根据视角筛选 -->
+            <if test="queryParam.viewType == 'buyer'">
+                AND o.buyer_id = #{queryParam.userId}
+            </if>
+            <if test="queryParam.viewType == 'seller'">
+                AND o.seller_id = #{queryParam.userId}
+            </if>
+            <!-- 根据状态筛选 -->
+            <if test="queryParam.status != null and queryParam.status != ''">
+                AND o.status = #{queryParam.status}
+            </if>
+            <!-- 排除逻辑删除的订单 (如果需要) -->
+            <!-- AND o.is_deleted = 0 -->
+        </where>
+        ORDER BY o.created_at DESC
+    </select>
+
+</mapper>

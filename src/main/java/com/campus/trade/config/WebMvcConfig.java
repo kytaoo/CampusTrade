@@ -1,45 +1,62 @@
+// src/main/java/com/campus/trade/config/WebMvcConfig.java
 package com.campus.trade.config;
 
-import org.springframework.beans.factory.annotation.Value; // 导入 Value
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
-import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry; // 导入 ResourceHandlerRegistry
+import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 @Configuration
 public class WebMvcConfig implements WebMvcConfigurer {
 
-    // 从配置文件注入图片访问的 URL 路径模式和物理存储路径
-    @Value("${file.access.path-pattern}")
-    private String accessPathPattern;
+    // 注入商品图片配置
+    @Value("${file.access.item-path-pattern}")
+    private String itemAccessPathPattern;
+    @Value("${file.upload.item-base-path}")
+    private String itemUploadBasePath;
 
-    @Value("${file.upload.base-path}")
-    private String uploadBasePath;
+    // 注入头像图片配置
+    @Value("${file.access.avatar-path-pattern}")
+    private String avatarAccessPathPattern;
+    @Value("${file.upload.avatar-base-path}")
+    private String avatarUploadBasePath;
+
 
     @Override
     public void addCorsMappings(CorsRegistry registry) {
-        // 配置允许跨域请求
-        registry.addMapping("/**") // 对所有路径生效
-                .allowedOriginPatterns("*") // 允许所有来源的请求 (生产环境建议指定具体来源)
-                // .allowedOrigins("http://localhost:5173") // 开发环境指定前端地址
-                .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS") // 允许的方法
-                .allowCredentials(true) // 允许携带凭证 (如 Cookie)
-                .maxAge(3600); // 预检请求的有效期 (秒)
+        // CORS 配置保持不变
+        registry.addMapping("/**")
+                .allowedOriginPatterns("*")
+                .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
+                .allowCredentials(true)
+                .maxAge(3600);
+    }
+
+    @Override
+    public void addResourceHandlers(ResourceHandlerRegistry registry) {
+        // --- 添加商品图片映射 ---
+        String itemLocation = formatLocationPath(itemUploadBasePath);
+        registry.addResourceHandler(itemAccessPathPattern) // 例如 /images/item/**
+                .addResourceLocations(itemLocation);    // 例如 file:D:/Study/Code/CampusTrade/images/item/
+
+        // --- 添加头像图片映射 ---
+        String avatarLocation = formatLocationPath(avatarUploadBasePath);
+        registry.addResourceHandler(avatarAccessPathPattern) // 例如 /images/avatar/**
+                .addResourceLocations(avatarLocation);    // 例如 file:D:/Study/Code/CampusTrade/images/avatar/
     }
 
     /**
-     * 添加静态资源处理器，用于访问上传的图片
+     * 格式化物理路径，确保以 "file:" 开头并以 "/" 结尾
+     * @param physicalPath 物理路径
+     * @return 格式化后的路径
      */
-    @Override
-    public void addResourceHandlers(ResourceHandlerRegistry registry) {
-        // 确保物理路径以 "file:" 开头，并且根据操作系统适配路径分隔符
-        String location = "file:" + uploadBasePath.replace("\\", "/");
-        // 如果路径不是以 '/' 结尾，则添加 '/'
+    private String formatLocationPath(String physicalPath) {
+        if (physicalPath == null) return "file:/"; // 或者抛异常
+        String location = "file:" + physicalPath.replace("\\", "/");
         if (!location.endsWith("/")) {
             location += "/";
         }
-
-        registry.addResourceHandler(accessPathPattern) // 前端访问的 URL 路径模式 (例如 /images/**)
-                .addResourceLocations(location); // 映射到实际的物理存储路径 (例如 file:D:/campus-trade/uploads/images/)
+        return location;
     }
 }

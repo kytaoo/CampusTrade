@@ -150,4 +150,31 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         }
         return userMapper.selectOne(queryWrapper);
     }
+
+    @Override
+    public BigDecimal getUserBalance(Integer userId) {
+        User user = userMapper.selectById(userId);
+        return (user != null) ? user.getBalance() : BigDecimal.ZERO;
+    }
+
+    // 【内部使用或受控调用】 扣减余额 (需要考虑并发)
+    // @Transactional
+    // public boolean decreaseBalance(Integer userId, BigDecimal amount) throws Exception {
+    //     User user = userMapper.selectById(userId); // 考虑加锁 FOR UPDATE
+    //     if (user == null) throw new Exception("用户不存在");
+    //     if (user.getBalance().compareTo(amount) < 0) {
+    //         throw new Exception("余额不足");
+    //     }
+    //     user.setBalance(user.getBalance().subtract(amount));
+    //     return userMapper.updateById(user) > 0; // 考虑乐观锁
+    // }
+
+    // 【内部使用或受控调用】 增加余额 (需要考虑并发)
+    // @Transactional
+    // public boolean increaseBalance(Integer userId, BigDecimal amount) throws Exception {
+    //     User user = userMapper.selectById(userId); // 考虑加锁 FOR UPDATE
+    //     if (user == null) throw new Exception("用户不存在");
+    //     user.setBalance(user.getBalance().add(amount));
+    //     return userMapper.updateById(user) > 0; // 考虑乐观锁
+    // }
 }
